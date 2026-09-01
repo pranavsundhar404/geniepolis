@@ -13,8 +13,12 @@ import re
 # 1. Classification
 # ---------------------------------------------------------------------------
 # Order matters: earlier domains win ties (more specific first).
+# Some keywords are multi-word / high-signal — they score 2 instead of 1.
 DOMAIN_KEYWORDS = {
     "creative":      ["medieval", "castle", "night campus", "theme", "look like", "futuristic", "forest", "beach"],
+    "faculty":       ["teacher", "teachers", "faculty", "professor", "lecturer", "staff room",
+                      "faculty room", "substitute", "class teacher", "instructor", "mentor",
+                      "faculty availability", "more faculty", "change teacher"],
     "gate":          ["gate", "entrance", "entry point", "front gate"],
     "traffic":       ["traffic", "congestion", "road", "pedestrian", "car-free", "cars from", "no cars", "one-way"],
     "transport":     ["bus", "shuttle", "bus stop"],
@@ -23,7 +27,22 @@ DOMAIN_KEYWORDS = {
     "library":       ["library", "study space", "reading room"],
     "washroom":      ["washroom", "toilet", "restroom", "bathroom"],
     "parking":       ["parking", "car space", "vehicle space", "parking lot"],
-    "schedule":      ["class", "classes", "start at", "timing", "10 am", "8 pm", "9 am", "schedule", "lecture time", "morning class", "late class"],
+    "schedule":      ["class start", "classes start", "start at", "class timing", "timing",
+                      "10 am", "8 pm", "9 am", "8 am", "schedule", "lecture time",
+                      "morning class", "late class", "start time", "end at"],
+}
+
+# phrases that, if present, strongly pin the domain regardless of other hits
+DOMAIN_STRONG = {
+    "faculty": ["teacher", "faculty", "professor", "lecturer", "instructor"],
+    "creative": ["medieval", "futuristic", "theme the", "look like a"],
+    "gate": ["the gate", "front gate", "move the gate"],
+    "cafeteria": ["cafeteria", "canteen", "mess"],
+    "library": ["library"],
+    "washroom": ["washroom", "toilet", "restroom"],
+    "sports": ["sports", "ground", "gym"],
+    "transport": ["bus"],
+    "parking": ["parking"],
 }
 
 DEFAULT_DOMAIN = "schedule"
@@ -51,9 +70,13 @@ OFFTOPIC_TELLS = [
 
 def classify(text: str) -> str:
     t = (text or "").lower()
-    best, best_hits = DEFAULT_DOMAIN, 0
+    # strong phrases short-circuit (first match by dict order wins)
+    for domain, phrases in DOMAIN_STRONG.items():
+        if any(p in t for p in phrases):
+            return domain
+    best, best_hits = DEFAULT_DOMAIN, 0.0
     for domain, kws in DOMAIN_KEYWORDS.items():
-        hits = sum(1 for k in kws if k in t)
+        hits = sum(2 if " " in k else 1 for k in kws if k in t)
         if hits > best_hits:
             best, best_hits = domain, hits
     return best if best_hits else DEFAULT_DOMAIN
@@ -94,6 +117,7 @@ GENIE_REACTIONS = {
     "transport": "Buses. The unsung heroes nobody thanks. Let's help them.",
     "library":   "More study space? Who *are* you and what have you done with students?",
     "washroom":  "A wish about washrooms. Unglamorous. Deeply appreciated by all.",
+    "faculty":   "Ah, a wish about the *humans* who teach. Delicate territory. Continue.",
     "creative":  "Finally... a student with *ambition*.",
 }
 
@@ -285,6 +309,27 @@ QUESTION_TREES = {
         _q("group", "Mainly affecting...", "Primary group?",
            [("Students", "students"), ("Faculty", "faculty"), ("Visitors", "visitors")]),
     ],
+    "faculty": [
+        _q("problem", "The faculty pain is...", "What's actually wrong?",
+           [("Not enough teachers for the class load", "shortage"),
+            ("Teachers hard to reach outside class", "availability"),
+            ("Too many last-minute teacher swaps", "instability"),
+            ("Want a specific class's teacher changed", "reassign")]),
+        _q("when", "When does it bite hardest?", "Worst window?",
+           [("During class hours", "class_hours"),
+            ("During office / doubt-clearing hours", "office_hours"),
+            ("Around exams", "exams"),
+            ("All the time", "always")]),
+        _q("fix", "Your preferred fix?", "How to solve it?",
+           [("Hire / add faculty", "add_faculty"),
+            ("Fixed, published office-hour slots", "office_slots"),
+            ("Lock the timetable — no ad-hoc swaps", "stable_timetable"),
+            ("Reassign the specific class", "reassign_class")]),
+        _q("group", "Who is this for?", "Primary group?",
+           [("All students", "students"),
+            ("One department", "one_dept"),
+            ("First-year students", "first_year")]),
+    ],
     "creative": [
         _q("theme", "Pick your reality...", "Which theme?",
            [("🏰 Medieval city", "medieval"),
@@ -337,6 +382,9 @@ def build_structured_wish(domain: str, raw_text: str, answers: dict) -> dict:
         sw["preferred_solution"] = answers.get("goal", "hours")
     elif domain == "washroom":
         sw["preferred_solution"] = answers.get("fix", "more_staff")
+    elif domain == "faculty":
+        sw["problem"] = answers.get("problem", "availability")
+        sw["preferred_solution"] = answers.get("fix", "office_slots")
     elif domain == "creative":
         sw["preferred_solution"] = "retheme"
         sw["theme"] = answers.get("theme", "medieval")
@@ -364,6 +412,8 @@ def scenario_key(sw: dict) -> str:
         return "library_hours"
     if d == "washroom":
         return "washroom_ops"
+    if d == "faculty":
+        return "faculty_ops"
     if d == "creative":
         return "creative_retheme"
     return "class_start_time"
@@ -388,6 +438,8 @@ def confirm_sentence(sw: dict) -> str:
         "transport":f"You want to fix '{sw.get('problem','frequency')}' in the '{sw.get('time','am_peak')}' by '{sw.get('fix')}', for {g}.",
         "library":  f"You want '{sw.get('goal','hours')}' for the library during '{sw.get('when','evening')}', for {g}.",
         "washroom": f"You want to fix '{sw.get('problem','maintenance')}' at '{sw.get('time','morning_break')}' via '{sw.get('fix')}', for {g}.",
+        "faculty":  f"You want to fix faculty '{sw.get('problem','availability')}' (worst during '{sw.get('when','class_hours')}') "
+                    f"by '{sw.get('fix','office_slots')}', for {g}.",
         "creative": f"You want the campus re-themed as '{sw.get('theme','medieval')}' at intensity '{sw.get('intensity','vibe')}', "
                     f"keeping '{sw.get('keep','none')}' normal.",
     }

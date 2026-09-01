@@ -24,11 +24,20 @@ def _rgba(hex_color: str, alpha: float) -> str:
 
 
 def render_campus(data, *, theme="default", highlight_direct=None, highlight_indirect=None,
-                  key="campus", height=520, title_suffix=""):
+                  key="campus", height=520, title_suffix="", moves=None, recolor=None):
     highlight_direct = set(highlight_direct or [])
     highlight_indirect = set(highlight_indirect or [])
+    moves = moves or {}            # {bid: [x, y]} -> building physically relocates
+    recolor = recolor or {}        # {bid: delta_pct} -> fill washes red (up) / green (down)
     th = CAMPUS_THEMES.get(theme, CAMPUS_THEMES["default"])
     snap = data.get("snapshot", {})
+
+    def _pos(b):
+        """current footprint origin, honouring any move"""
+        if b["id"] in moves:
+            mx, my = moves[b["id"]]
+            return float(mx), float(my)
+        return float(b["x"]), float(b["y"])
 
     fig = go.Figure()
 
@@ -37,11 +46,11 @@ def render_campus(data, *, theme="default", highlight_direct=None, highlight_ind
         fig.add_shape(type="rect", x0=z["x"], y0=z["y"], x1=z["x"] + z["w"], y1=z["y"] + z["h"],
                       line=dict(width=0), fillcolor="rgba(31,111,63,0.13)", layer="below")
 
-    # roads
+    # roads (dim the central spine when a car-free / pedestrian wish is active)
     for r in ROADS:
         xs = [p[0] for p in r["pts"]]
         ys = [p[1] for p in r["pts"]]
-        dim = theme == "pedestrian"
+        dim = theme == "pedestrian" or (r["id"] == "spine" and theme == "pedestrian")
         fig.add_trace(go.Scatter(
             x=xs, y=ys, mode="lines", hoverinfo="skip", showlegend=False,
             line=dict(color="#39507e", width=3 if dim else 9,
@@ -51,20 +60,45 @@ def render_campus(data, *, theme="default", highlight_direct=None, highlight_ind
     # building footprints
     for b in BUILDINGS:
         stl = TYPE_STYLE.get(b["type"], {"color": "#4f9dff", "icon": "▪"})
+        bx, by = _pos(b)
+
+        # ghost of the old location + arrow when a building has moved
+        if b["id"] in moves:
+            fig.add_shape(type="rect", x0=b["x"], y0=b["y"],
+                          x1=b["x"] + b["w"], y1=b["y"] + b["h"],
+                          line=dict(color="rgba(255,255,255,0.25)", width=1, dash="dot"),
+                          fillcolor="rgba(255,255,255,0.03)", layer="below")
+            oc = building_center(b)
+            fig.add_annotation(x=bx + b["w"] / 2, y=by + b["h"] / 2, ax=oc[0], ay=oc[1],
+                               xref="x", yref="y", axref="x", ayref="y",
+                               showarrow=True, arrowhead=3, arrowsize=1.4,
+                               arrowwidth=2, arrowcolor="#4fe3ff", text="")
+
         border = "rgba(255,255,255,0.13)"
         width = 1
+        fill = _rgba(stl["color"], 0.8)
+        d = recolor.get(b["id"])
+        if d is not None and abs(d) >= 0.1:
+            fill = _rgba("#ff5c78" if d > 0 else "#37d99a", 0.78)
         if b["id"] in highlight_direct:
             border, width = "#ff6f8b", 3
         elif b["id"] in highlight_indirect:
             border, width = "#f6c14b", 2
-        fig.add_shape(type="rect", x0=b["x"], y0=b["y"], x1=b["x"] + b["w"], y1=b["y"] + b["h"],
-                      line=dict(color=border, width=width), fillcolor=_rgba(stl["color"], 0.8),
-                      layer="below")
+        fig.add_shape(type="rect", x0=bx, y0=by, x1=bx + b["w"], y1=by + b["h"],
+                      line=dict(color=border, width=width), fillcolor=fill, layer="below")
+
+        # delta label on changed buildings
+        if d is not None and abs(d) >= 0.1:
+            arrow = "▲" if d > 0 else "▼"
+            fig.add_annotation(x=bx + b["w"] / 2, y=by + b["h"] + 14, showarrow=False,
+                               text=f"<b>{arrow} {abs(d):.0f}%</b>",
+                               font=dict(color="#ff9bb0" if d > 0 else "#8ff5cf", size=11))
 
     # clickable centroids
     cx, cy, txt, cd, hov, msz, mcol, mline = [], [], [], [], [], [], [], []
     for b in BUILDINGS:
-        c = building_center(b)
+        bx, by = _pos(b)
+        c = (bx + b["w"] / 2, by + b["h"] / 2)
         stl = TYPE_STYLE.get(b["type"], {"color": "#4f9dff", "icon": "▪"})
         s = snap.get(b["id"], {})
         cx.append(c[0]); cy.append(c[1]); cd.append(b["id"])

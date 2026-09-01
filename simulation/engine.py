@@ -94,6 +94,8 @@ def simulate(sw: dict, data: dict) -> dict:
     res.setdefault("scenario_key", key)
     res.setdefault("wish_domain", sw["domain"])
     res.setdefault("raw_text", sw.get("raw_text", ""))
+    if _MOVE_TARGETS.get(key):
+        res.setdefault("map_changes", {}).setdefault("moves", dict(_MOVE_TARGETS[key]))
     res["verdict"] = _verdict(res.get("risks", []), res.get("benefits", []))
     res["genie_closer"] = _closer(res["verdict"], creative=(key == "creative_retheme"))
     # attach a compact before/after table view
@@ -101,7 +103,30 @@ def simulate(sw: dict, data: dict) -> dict:
         dict(metric=k.replace("_", " ").title(), **v)
         for k, v in res.get("metrics", {}).items()
     ]
+
+    # ---- map_changes: how the campus visibly redraws after the ripple ----
+    mc = res.get("map_changes", {}) or {}
+    mc.setdefault("moves", {})          # {building_id: [x, y]} new footprint origin
+    mc.setdefault("recolor", {})        # {building_id: delta_pct}  red = worse, green = better
+    # auto-derive recolour from the impacts if the handler didn't specify
+    if not mc["recolor"]:
+        for x in res.get("direct_impacts", []) + res.get("indirect_impacts", []):
+            bid = x.get("building_id")
+            d = x.get("delta_pct")
+            if bid and d is not None and bid not in mc["recolor"]:
+                mc["recolor"][bid] = d
+    res["map_changes"] = mc
     return res
+
+
+# where infrastructure wishes physically move a building on the map
+_MOVE_TARGETS = {
+    "move_gate":       {"main_gate": [150, 250]},          # beside Parking Zone A
+    "cafeteria_center":{"cafeteria": [460, 250]},          # onto the central lawn
+    "cafeteria_ops":   {},
+    "bus_stop_move":   {"bus_stop": [430, 300]},           # beside the academic block
+    "bus_ops":         {"bus_stop": [430, 300]},
+}
 
 
 # ---------------------------------------------------------------------------
@@ -649,6 +674,95 @@ def _washroom_ops(sw, data, b):
     )
 
 
+def _faculty_ops(sw, data, b):
+    problem = sw.get("problem", "availability")
+    fix = sw.get("preferred_solution", "office_slots")
+    fac = data["faculty"]
+    in_class = int((fac.status == "in_class").sum())
+    in_office = int((fac.status == "in_office").sum())
+    off = int((fac.status == "off_campus").sum())
+
+    hire = fix == "add_faculty"
+    # deterministic factors
+    consult_wait_before = 18.0        # min, avg wait to reach a teacher in office hours
+    consult_wait_after = consult_wait_before * (0.55 if hire else 0.7)
+    swap_rate_before = 12.0           # % of classes with a last-minute teacher change
+    swap_rate_after = swap_rate_before * (0.3 if fix == "stable_timetable" else 0.75)
+    load_before = round(220 / max(len(fac), 1), 2)   # classes per faculty
+    load_after = load_before * (0.82 if hire else 0.97)
+
+    metrics = {
+        "consultation_wait": _m(consult_wait_before, consult_wait_after, unit="min"),
+        "last_minute_swaps": _m(swap_rate_before, swap_rate_after, unit="%"),
+        "faculty_teaching_load": _m(load_before, load_after, unit="cls/fac"),
+        "faculty_delay": _m(b["faculty_delay"], b["faculty_delay"] * (0.92 if hire else 1.0), unit="min"),
+    }
+
+    direct = [
+        dict(label="Faculty Block", building_id="faculty_block", status="reorganised",
+             note={"add_faculty": "New hires added to departments",
+                   "office_slots": "Published, fixed office-hour slots",
+                   "stable_timetable": "Timetable locked — no ad-hoc swaps",
+                   "reassign_class": "Named class reassigned to a new teacher"}.get(fix, "Faculty policy change")),
+        dict(label="Class continuity", building_id="academic_block", status="stabilised",
+             note=f"Last-minute swaps {swap_rate_before:.0f}% → {swap_rate_after:.0f}%"),
+    ]
+    indirect = [
+        dict(label="Office-hour crowding", building_id="faculty_block",
+             delta_pct=metrics["consultation_wait"]["delta_pct"],
+             note="Shorter queue to reach a teacher"),
+        dict(label="Student doubt-clearing wait", building_id="academic_block",
+             delta_pct=metrics["consultation_wait"]["delta_pct"],
+             note="Predictable slots reduce back-and-forth"),
+        dict(label="Admin / scheduling workload", building_id="admin_block",
+             delta_pct=18.0 if hire else 9.0,
+             note="Onboarding + timetable maintenance"),
+        dict(label="Staff room usage", building_id="faculty_block", delta_pct=10.0 if hire else 3.0,
+             note="More bodies, same rooms" if hire else "Marginal change"),
+        dict(label="Payroll / budget", building_id="admin_block", delta_pct=14.0 if hire else 1.0,
+             note="Salaried headcount rises" if hire else "Policy-only, near-zero cost"),
+    ]
+    ripple = _ripple([
+        ("faculty_schedule", "direct", None),
+        ("students_on_campus", "indirect", metrics["consultation_wait"]["delta_pct"]),
+        ("worker_schedule", "indirect", 18.0 if hire else 9.0),
+        ("campus_energy", "indirect", 2.0 if hire else 0.0),
+    ])
+    benefits = [
+        f"Time to reach a teacher: {consult_wait_before:.0f} → {consult_wait_after:.0f} min",
+        f"Last-minute teacher changes drop to {swap_rate_after:.0f}%",
+        "Clearer accountability for each class",
+    ]
+    if hire:
+        benefits.append(f"Teaching load eases {load_before} → {load_after:.1f} classes/faculty")
+    risks = (["New salaried headcount — recurring budget impact",
+              "Hiring + onboarding lead time (a semester or more)",
+              "Staff rooms and parking near Faculty Block get tighter"] if hire else
+             ["Rigid slots reduce flexibility for genuine emergencies",
+              "Needs enforcement or it quietly reverts",
+              "Doesn't add capacity if the real issue is a shortage"])
+    tradeoffs = ["Hiring fixes capacity but costs money and time; policy fixes are cheap but don't add hands."]
+    why = (f"Currently {in_class} faculty are in class, {in_office} in offices, {off} off campus. "
+           f"The wish targets '{problem}'. "
+           + (f"Adding faculty lowers per-teacher load ({load_before} → {load_after:.1f} classes) and "
+              f"cuts consultation wait to {consult_wait_after:.0f} min, at a real payroll cost."
+              if hire else
+              f"Fixed slots / a locked timetable cut consultation wait to {consult_wait_after:.0f} min "
+              f"and swaps to {swap_rate_after:.0f}% with almost no spend — but add zero teaching capacity."))
+    alternatives = [
+        dict(label="Published office hours + a booking sheet", why="Most of the wait reduction, zero budget."),
+        dict(label="Senior-student TAs for doubt-clearing", why="Adds effective capacity cheaply."),
+        dict(label="Cap ad-hoc swaps at 2 per class per term", why="Targets instability without a full timetable lock."),
+    ]
+    return dict(
+        scenario=dict(title="Fix faculty availability", type="A · Operational",
+                      description=f"Problem: {problem} · Worst: {sw.get('when','class_hours')} · Fix: {fix}"),
+        direct_impacts=direct, indirect_impacts=indirect, metrics=metrics,
+        benefits=benefits, risks=risks, tradeoffs=tradeoffs,
+        recommendations=alternatives, ripple=ripple, why=why,
+    )
+
+
 def _creative_retheme(sw, data, b):
     theme = sw.get("theme", "medieval")
     theme_map = {"medieval": "medieval", "night": "night", "forest": "pedestrian", "futuristic": "default"}
@@ -724,5 +838,6 @@ HANDLERS = {
     "bus_ops": _bus_stop_move,
     "library_hours": _library_hours,
     "washroom_ops": _washroom_ops,
+    "faculty_ops": _faculty_ops,
     "creative_retheme": _creative_retheme,
 }

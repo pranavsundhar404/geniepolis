@@ -199,14 +199,23 @@ def phase_wish():
     # campus with highlights once we have a simulation
     hl_d = hl_i = []
     theme = SS.theme
+    moves = recolor = {}
+    applied = SS.stage in ("magic", "ripple", "impact", "alternatives", "complete")
     if SS.sim:
         hl_d = [x["building_id"] for x in SS.sim["direct_impacts"] if x.get("building_id")]
         hl_i = [x["building_id"] for x in SS.sim["indirect_impacts"] if x.get("building_id")]
-        theme = SS.sim.get("theme", SS.theme)
+        if applied:  # the campus only *redraws* after MAKE IT HAPPEN
+            theme = SS.sim.get("theme", SS.theme)
+            mc = SS.sim.get("map_changes", {})
+            moves = mc.get("moves", {})
+            recolor = mc.get("recolor", {})
 
     with left:
+        if applied:
+            st.caption("🔮 Campus — **after** your wish  ·  red = went up · green = went down · dotted = old position")
         render_campus(DATA, theme=theme, highlight_direct=hl_d, highlight_indirect=hl_i,
-                      key=f"campus_wish_{SS.wish_no}_{SS.stage}", height=440)
+                      key=f"campus_wish_{SS.wish_no}_{SS.stage}", height=440,
+                      moves=moves, recolor=recolor)
         synthetic_tag()
 
     with right:
