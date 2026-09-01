@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GENIEPOLIS — Three Wishes. One Campus. Infinite Ripples.</title>
+<meta name="description" content="A Genie-powered campus what-if simulator. Make a wish, watch it ripple across a synthetic digital twin of BMS College of Engineering. HackCulture · Track B." />
+<style>
+  :root{
+    --bg:#070b16; --bg2:#0d1426; --card:#111a30; --line:#20304f;
+    --cyan:#4fe3ff; --gold:#f6c14b; --violet:#b58bff;
+    --text:#eaf1ff; --muted:#93a3c4; --good:#37d99a; --bad:#ff6f8b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:radial-gradient(1200px 700px at 20% -10%, #16224a 0%, var(--bg) 55%) fixed;
+    color:var(--text);
+    font-family:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+    line-height:1.6;
+  }
+  a{color:var(--cyan);text-decoration:none}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+  section{padding:56px 0;border-top:1px solid #ffffff10}
+  h1,h2,h3{letter-spacing:.2px;line-height:1.2}
+  h2{font-size:1.7rem;margin-bottom:8px}
+  .sub{color:var(--muted);margin-bottom:28px;max-width:70ch}
+
+  /* hero */
+  .hero{padding:80px 0 60px;text-align:center}
+  .logo{font-size:3rem;font-weight:800;
+    background:linear-gradient(90deg,#fff,var(--cyan) 55%,var(--gold));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .tag{color:var(--muted);font-size:1.05rem;margin-top:6px}
+  .badges{margin:22px 0 30px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .badge{font-size:.72rem;font-weight:700;padding:6px 12px;border-radius:999px;
+    border:1px solid var(--line);color:var(--muted)}
+  .cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+  .btn{display:inline-block;padding:13px 22px;border-radius:12px;font-weight:700;
+    border:1px solid var(--line);color:var(--text);transition:.15s}
+  .btn:hover{border-color:var(--cyan);box-shadow:0 0 20px -6px var(--cyan)}
+  .btn.primary{background:linear-gradient(90deg,var(--cyan),var(--violet));
+    color:#04121e;border:0}
+
+  .grid{display:grid;gap:16px}
+  .grid.c2{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+  .grid.c3{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .card{background:linear-gradient(180deg,var(--card),#0d1730);
+    border:1px solid var(--line);border-radius:16px;padding:20px}
+  .card h3{font-size:1.05rem;margin-bottom:6px}
+  .card p{color:var(--muted);font-size:.92rem}
+  .k{color:var(--cyan);font-weight:700}
+
+  /* journey */
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .step{background:#0e1a33;border:1px solid var(--line);border-radius:10px;
+    padding:8px 12px;font-size:.85rem;white-space:nowrap}
+  .arrow{color:var(--gold);font-weight:800}
+
+  /* arch */
+  .arch{display:flex;flex-direction:column;gap:10px}
+  .arow{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .apill{padding:10px 14px;border-radius:10px;border:1px solid var(--line);
+    background:#0e1a33;font-weight:600;font-size:.9rem}
+  .apill.i{border-color:#2aa7c7;color:var(--cyan)}
+  .apill.s{border-color:#7c6327;color:var(--gold)}
+  .apill.d{border-color:#276c53;color:var(--good)}
+
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  td,th{text-align:left;padding:10px 12px;border-bottom:1px solid #ffffff10;vertical-align:top}
+  th{color:var(--muted);font-weight:600}
+
+  .note{margin-top:14px;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;
+    color:#ffd98a;border:1px dashed #7a6323;padding:6px 10px;border-radius:8px;display:inline-block}
+  footer{padding:40px 0 60px;color:var(--muted);font-size:.85rem;text-align:center}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="logo">✨ GENIEPOLIS</div>
+    <div class="tag">Three Wishes. One Campus. Infinite Ripples.</div>
+    <div class="badges">
+      <span class="badge">HackCulture · Track B</span>
+      <span class="badge">Creative Campus Intelligence</span>
+      <span class="badge">Streamlit + Databricks Genie</span>
+    </div>
+    <div class="cta">
+      <!-- After deploying on Streamlit Community Cloud, replace the href below -->
+      <a class="btn primary" href="https://share.streamlit.io" id="launch">Launch the app ▸</a>
+      <a class="btn" href="https://github.com/pranavsundhar404/geniepolis">View source on GitHub</a>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>What it is</h2>
+    <p class="sub">
+      Traditional campus dashboards tell you <span class="k">what</span> is happening.
+      GENIEPOLIS lets students ask <span class="k">what if?</span> You explore an
+      interactive 2.5D digital twin of BMS College of Engineering, then a Genie grants you
+      <span class="k">three independent wishes</span>. For each one it plays Akinator —
+      asking a few narrowing questions — confirms what you really meant, then simulates how
+      that single decision ripples across the entire campus.
+    </p>
+    <div class="grid c3">
+      <div class="card"><h3>🧞 The Genie narrows</h3><p>3–6 quick questions turn a vague wish into a structured scenario. It doesn't just answer — it interrogates.</p></div>
+      <div class="card"><h3>🌀 The ripple</h3><p>One change → class timing → buses → traffic → parking → cafeteria → faculty → workers → energy. Animated, step by step.</p></div>
+      <div class="card"><h3>🫀 Campus Pulse</h3><p>Repeated wishes stop being isolated complaints. At 50+ requests a wish becomes a <span class="k">campus signal</span>.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>The journey</h2>
+    <p class="sub">Every wish runs the full loop before the next one begins.</p>
+    <div class="flow">
+      <span class="step">See campus</span><span class="arrow">→</span>
+      <span class="step">Meet Genie</span><span class="arrow">→</span>
+      <span class="step">Make wish</span><span class="arrow">→</span>
+      <span class="step">Genie narrows</span><span class="arrow">→</span>
+      <span class="step">Confirm</span><span class="arrow">→</span>
+      <span class="step">✨ Make it happen</span><span class="arrow">→</span>
+      <span class="step">Ripple</span><span class="arrow">→</span>
+      <span class="step">Direct + indirect impacts</span><span class="arrow">→</span>
+      <span class="step">Before / after</span><span class="arrow">→</span>
+      <span class="step">Risks + benefits</span><span class="arrow">→</span>
+      <span class="step">Alternatives</span><span class="arrow">→</span>
+      <span class="step">Wish complete</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Architecture</h2>
+    <p class="sub">Genie interprets and explains. A deterministic Python engine owns every number — the LLM never does the math.</p>
+    <div class="arch">
+      <div class="arow"><span class="apill">User</span><span class="arrow">→</span><span class="apill">Streamlit UI</span><span class="arrow">→</span><span class="apill i">Databricks Genie — interpret · clarify · retrieve · explain</span></div>
+      <div class="arow"><span class="arrow">→</span><span class="apill">Structured scenario JSON</span><span class="arrow">→</span><span class="apill s">Deterministic simulation engine — before/after, ripple, risk/benefit</span></div>
+      <div class="arow"><span class="arrow">→</span><span class="apill">Ripple graph</span><span class="arrow">→</span><span class="apill">Campus visualization</span><span class="arrow">→</span><span class="apill i">Genie explanation of the results</span></div>
+    </div>
+    <div class="grid c2" style="margin-top:18px">
+      <div class="card"><h3 class="k">Databricks</h3><p>Genie Agent (Conversation API) + Unity Catalog: 16 synthetic tables incl. an <code>impact_relationships</code> butterfly-effect graph.</p></div>
+      <div class="card"><h3 class="k">Python</h3><p>12 deterministic scenario handlers. Simple, readable formulas: <code>new = base × (1 + factor)</code>.</p></div>
+      <div class="card"><h3 class="k">Streamlit</h3><p>The game-like UI, custom CSS, the 12-screen journey, three-wish state machine.</p></div>
+      <div class="card"><h3 class="k">Plotly</h3><p>Fast 2.5D campus map — clickable buildings, live conditions, ripple highlighting.</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Demo scenarios</h2>
+    <table>
+      <tr><th>Wish</th><th>Type</th><th>What it shows</th></tr>
+      <tr><td>Start classes at 10 AM</td><td>Operational</td><td>Sleep gain vs. a sharper, later traffic + bus peak</td></tr>
+      <tr><td>Move the front gate near parking</td><td>Infrastructure</td><td>Shorter walk vs. one concentrated traffic pinch-point</td></tr>
+      <tr><td>Boost sports participation</td><td>Operational</td><td>Washroom / parking / cafeteria spikes near the ground</td></tr>
+      <tr><td>Make the central campus pedestrian-only</td><td>Infrastructure</td><td>Real congestion drop vs. emergency-access risk</td></tr>
+      <tr><td>Put the cafeteria in the centre</td><td>Infrastructure</td><td>Shorter walk vs. dangerous crowd concentration</td></tr>
+      <tr><td>Make the campus medieval</td><td>Creative / visual</td><td>Pure re-theme — no simulation, all vibes</td></tr>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Run it yourself</h2>
+    <div class="card">
+      <p style="color:var(--text)"><code>git clone https://github.com/pranavsundhar404/geniepolis.git</code></p>
+      <p style="color:var(--text)"><code>cd geniepolis &amp;&amp; pip install -r requirements.txt</code></p>
+      <p style="color:var(--text)"><code>streamlit run app.py</code></p>
+      <p style="margin-top:8px">Opens in Demo fallback mode with zero config. Add a <code>.env</code> with your Databricks host, token and Genie space ID to connect the real Genie agent — see <a href="https://github.com/pranavsundhar404/geniepolis/blob/main/DATABRICKS_SETUP.md">DATABRICKS_SETUP.md</a>.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span class="note">All operational data is synthetic demonstration data — not real institutional data</span>
+    <p style="margin-top:16px">
+      BMS College of Engineering used as a fictional demonstration context ·
+      Visualization concept adapted from
+      <a href="https://github.com/Smart-Campus-Digital-Twin">Smart-Campus-Digital-Twin</a>
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
