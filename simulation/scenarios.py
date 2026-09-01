@@ -15,7 +15,10 @@ import re
 # Order matters: earlier domains win ties (more specific first).
 # Some keywords are multi-word / high-signal — they score 2 instead of 1.
 DOMAIN_KEYWORDS = {
-    "creative":      ["medieval", "castle", "night campus", "theme", "look like", "futuristic", "forest", "beach"],
+    "creative":      ["medieval", "castle", "night campus", "theme", "look like", "futuristic",
+                      "forest", "beach", "color", "colour", "paint", "repaint", "decorate",
+                      "mural", "aesthetic", "vibe", "beautify", "pretty", "lighting", "lights",
+                      "artwork", "graffiti", "wallpaper", "makeover", "redesign the look"],
     "faculty":       ["teacher", "teachers", "faculty", "professor", "lecturer", "staff room",
                       "faculty room", "substitute", "class teacher", "instructor", "mentor",
                       "faculty availability", "more faculty", "change teacher"],
@@ -32,11 +35,15 @@ DOMAIN_KEYWORDS = {
                       "morning class", "late class", "start time", "end at"],
 }
 
-# phrases that, if present, strongly pin the domain regardless of other hits
+# phrases that, if present, strongly pin the domain regardless of other hits.
+# Checked in dict order — put cosmetic ("creative") BEFORE physical domains so
+# "gate color" / "paint the library" resolve to a visual wish, not a move.
 DOMAIN_STRONG = {
+    "creative": ["medieval", "futuristic", "theme the", "look like a", "color", "colour",
+                 "paint", "repaint", "decorate", "mural", "make it pretty", "makeover",
+                 "aesthetic", "lighting", "wallpaper", "graffiti"],
     "faculty": ["teacher", "faculty", "professor", "lecturer", "instructor"],
-    "creative": ["medieval", "futuristic", "theme the", "look like a"],
-    "gate": ["the gate", "front gate", "move the gate"],
+    "gate": ["move the gate", "relocate the gate", "shift the gate", "gate near", "gate closer"],
     "cafeteria": ["cafeteria", "canteen", "mess"],
     "library": ["library"],
     "washroom": ["washroom", "toilet", "restroom"],
@@ -331,15 +338,21 @@ QUESTION_TREES = {
             ("First-year students", "first_year")]),
     ],
     "creative": [
-        _q("theme", "Pick your reality...", "Which theme?",
-           [("🏰 Medieval city", "medieval"),
-            ("🌙 Eternal night campus", "night"),
-            ("🌲 Forest campus", "forest"),
-            ("🚀 Futuristic campus", "futuristic")]),
-        _q("intensity", "How committed are we?", "Intensity?",
-           [("Just the vibe / colours", "vibe"),
-            ("Rename every building", "rename"),
-            ("Full transformation", "full")]),
+        _q("kind", "What kind of makeover are we talking?", "Scope of the visual change?",
+           [("Re-theme the whole campus", "theme"),
+            ("Recolour / repaint one place", "recolor"),
+            ("New lighting & mood", "lighting"),
+            ("Rename the buildings", "rename")]),
+        _q("target", "Where does the magic land?", "Applies to?",
+           [("The whole campus", "campus"),
+            ("The main gate & entrance", "gate"),
+            ("The academic core", "academic_core"),
+            ("The lawns & open space", "lawns")]),
+        _q("theme", "Pick the flavour...", "Style / palette?",
+           [("🏰 Medieval / stone", "medieval"),
+            ("🌙 Night / neon", "night"),
+            ("🌲 Forest / green", "forest"),
+            ("🚀 Futuristic / chrome", "futuristic")]),
         _q("keep", "One thing must stay normal. Which?", "Keep realistic?",
            [("The cafeteria", "cafeteria"), ("The library", "library"),
             ("Nothing, go wild", "none")]),
@@ -356,6 +369,31 @@ def get_tree(domain: str):
 # ---------------------------------------------------------------------------
 # 4. Structured wish assembly
 # ---------------------------------------------------------------------------
+def _time_from_text(raw: str) -> str | None:
+    """Pull an explicit start time out of free text: '10am', '8 pm', '18:00'."""
+    t = raw.lower()
+    m = re.search(r"\b(\d{1,2})\s*[:.]?(\d{2})?\s*(am|pm)\b", t)
+    if m:
+        h = int(m.group(1)) % 12
+        if m.group(3) == "pm":
+            h += 12
+        return f"{h:02d}:00"
+    m = re.search(r"\b([01]?\d|2[0-3]):([0-5]\d)\b", t)
+    if m:
+        return f"{int(m.group(1)):02d}:00"
+    return None
+
+
+def _theme_from_text(raw: str) -> str | None:
+    t = raw.lower()
+    for kw, th in [("medieval", "medieval"), ("castle", "medieval"), ("night", "night"),
+                   ("neon", "night"), ("forest", "forest"), ("jungle", "forest"),
+                   ("future", "futuristic"), ("futuristic", "futuristic"), ("sci-fi", "futuristic")]:
+        if kw in t:
+            return th
+    return None
+
+
 def build_structured_wish(domain: str, raw_text: str, answers: dict) -> dict:
     """answers = {question_key: chosen_value}"""
     sw = dict(domain=domain, raw_text=raw_text.strip(), **answers)
@@ -365,7 +403,8 @@ def build_structured_wish(domain: str, raw_text: str, answers: dict) -> dict:
     if domain == "schedule":
         sw["problem"] = answers.get("motivation", "decongest")
         sw["preferred_solution"] = "shift_start_time"
-        sw["time"] = answers.get("target_time", "10:00")
+        # answered value wins; otherwise pull the time straight from the wish text
+        sw["time"] = answers.get("target_time") or _time_from_text(raw_text) or "10:00"
     elif domain == "parking":
         sw["preferred_solution"] = answers.get("solution", "increase_capacity")
     elif domain == "gate":
@@ -387,7 +426,9 @@ def build_structured_wish(domain: str, raw_text: str, answers: dict) -> dict:
         sw["preferred_solution"] = answers.get("fix", "office_slots")
     elif domain == "creative":
         sw["preferred_solution"] = "retheme"
-        sw["theme"] = answers.get("theme", "medieval")
+        sw["theme"] = answers.get("theme") or _theme_from_text(raw_text) or "medieval"
+        sw.setdefault("kind", answers.get("kind", "theme"))
+        sw.setdefault("target", answers.get("target", "campus"))
     return sw
 
 
@@ -440,8 +481,8 @@ def confirm_sentence(sw: dict) -> str:
         "washroom": f"You want to fix '{sw.get('problem','maintenance')}' at '{sw.get('time','morning_break')}' via '{sw.get('fix')}', for {g}.",
         "faculty":  f"You want to fix faculty '{sw.get('problem','availability')}' (worst during '{sw.get('when','class_hours')}') "
                     f"by '{sw.get('fix','office_slots')}', for {g}.",
-        "creative": f"You want the campus re-themed as '{sw.get('theme','medieval')}' at intensity '{sw.get('intensity','vibe')}', "
-                    f"keeping '{sw.get('keep','none')}' normal.",
+        "creative": f"You want a '{sw.get('kind','theme')}' makeover ('{sw.get('theme','medieval')}' style) "
+                    f"on '{sw.get('target','campus')}', keeping '{sw.get('keep','none')}' normal.",
     }
     return templ.get(d, "You want a campus change. I have decoded it.")
 

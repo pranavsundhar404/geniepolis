@@ -765,29 +765,55 @@ def _faculty_ops(sw, data, b):
 
 def _creative_retheme(sw, data, b):
     theme = sw.get("theme", "medieval")
+    kind = sw.get("kind", "theme")           # theme | recolor | lighting | rename
+    target = sw.get("target", "campus")      # campus | gate | academic_core | lawns
     theme_map = {"medieval": "medieval", "night": "night", "forest": "pedestrian", "futuristic": "default"}
-    labels = {
-        "medieval": ("Medieval Geniepolis", "Buildings become keeps, the lawn a jousting green, the gate a drawbridge."),
-        "night": ("Eternal Night Campus", "Perpetual dusk, lantern light, and a suspiciously photogenic moon."),
-        "forest": ("Forest Campus", "Canopy walkways, moss on the admin block, owls in the auditorium."),
-        "futuristic": ("Neo-Geniepolis 2099", "Chrome, holograms, and a cafeteria that prints dosa."),
-    }
-    name, desc = labels.get(theme, labels["medieval"])
+    palette = {"medieval": "stone-and-torch", "night": "neon-on-black",
+               "forest": "moss-and-timber", "futuristic": "chrome-and-glass"}[theme]
+    target_label = {"campus": "the whole campus", "gate": "the main gate & entrance",
+                    "academic_core": "the academic core", "lawns": "the lawns & open space"}[target]
+
+    if kind == "recolor":
+        name = f"Repaint {target_label} · {palette}"
+        desc = f"{target_label.capitalize()} gets a {palette} colour scheme. Nothing else moves."
+        buzz = 120.0
+    elif kind == "lighting":
+        name = f"New lighting for {target_label}"
+        desc = f"{target_label.capitalize()} lit in a {theme} mood — lamps, uplighting, colour wash."
+        buzz = 160.0
+    elif kind == "rename":
+        name = "Rename the buildings"
+        desc = f"Every block gets a {theme}-flavoured name (Library → The Grand Archive)."
+        buzz = 90.0
+    else:  # full theme
+        full = {
+            "medieval": ("Medieval Geniepolis", "Buildings become keeps, the lawn a jousting green, the gate a drawbridge."),
+            "night": ("Eternal Night Campus", "Perpetual dusk, lantern light, and a suspiciously photogenic moon."),
+            "forest": ("Forest Campus", "Canopy walkways, moss on the admin block, owls in the auditorium."),
+            "futuristic": ("Neo-Geniepolis 2099", "Chrome, holograms, and a cafeteria that prints dosa."),
+        }
+        name, desc = full.get(theme, full["medieval"])
+        buzz = 300.0
+
+    focus_bid = {"gate": "main_gate", "academic_core": "academic_block",
+                 "lawns": "cafeteria", "campus": "academic_block"}[target]
     direct = [
-        dict(label="Campus theme", building_id="academic_block", status="transformed", note=desc),
-        dict(label="Building names", building_id="library", status="renamed", note="The Library → The Grand Archive"),
+        dict(label=f"Visual: {kind}", building_id=focus_bid, status="transformed", note=desc),
     ]
+    if kind in ("theme", "rename"):
+        direct.append(dict(label="Building names", building_id="library", status="renamed",
+                           note="The Library → The Grand Archive"))
     indirect = [
-        dict(label="Student photos / social buzz", building_id="main_gate", delta_pct=300.0, note="Wildly up. Obviously."),
+        dict(label="Student photos / social buzz", building_id="main_gate", delta_pct=buzz, note="Way up. Obviously."),
         dict(label="Actual operations", building_id="admin_block", delta_pct=0.0, note="Unchanged — this is a visual wish"),
     ]
     ripple = _ripple([
         ("students_on_campus", "direct", None),
-        ("campus_energy", "indirect", 0.0),
+        ("campus_energy", "indirect", 4.0 if kind == "lighting" else 0.0),
     ])
     return dict(
         scenario=dict(title=name, type="C · Creative / Visual",
-                      description=f"{desc}  Intensity: {sw.get('intensity','vibe')}. Kept normal: {sw.get('keep','none')}."),
+                      description=f"{desc}  Scope: {kind} on {target_label}. Kept normal: {sw.get('keep','none')}."),
         direct_impacts=direct, indirect_impacts=indirect, metrics={},
         benefits=["Campus morale and identity soar", "Amazing for open-day and marketing",
                   "Zero operational risk — it's paint and signage"],
@@ -801,7 +827,10 @@ def _creative_retheme(sw, data, b):
         ],
         ripple=ripple, why="Creative wishes skip the simulation engine — GENIEPOLIS just re-skins the "
                            "map. Operations, traffic and crowd numbers are deliberately left unchanged.",
-        theme=theme_map.get(theme, "default"),
+        # full map re-skin only for a whole-campus theme; targeted changes just
+        # recolour the focus building via map_changes below
+        theme=(theme_map.get(theme, "default") if (kind == "theme" and target == "campus") else "default"),
+        map_changes={"recolor": {focus_bid: 0.05}},
     )
 
 

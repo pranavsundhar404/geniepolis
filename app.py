@@ -84,6 +84,9 @@ def reset_wish(keep_prefill=""):
     SS.answers = {}
     SS.sim = None
     SS.explanation = ""
+    SS.offtopic_msg = ""
+    for k in [k for k in list(SS.keys()) if k.startswith("dynq_")]:
+        del SS[k]
 
 
 def mode_badge():
@@ -257,20 +260,44 @@ def _stage_input():
         st.rerun()
 
 
+_GENERIC_Q = dict(
+    key="detail", genie="One more thing I'm curious about...", prompt="Which fits best?",
+    options=[dict(label="It's urgent / high priority", value="urgent"),
+             dict(label="Nice-to-have, no rush", value="nice_to_have"),
+             dict(label="It affects a lot of people", value="broad"),
+             dict(label="Small, targeted fix", value="targeted")])
+
+
 def _stage_narrow():
-    genie_say(GENIE_REACTIONS.get(SS.domain, "Interesting. Go on."))
     tree = get_tree(SS.domain)
-    if SS.q_index >= len(tree):
+    dynamic = BRIDGE.mode == GENIE_CONNECTED
+    n_q = 5 if dynamic else len(tree)
+
+    if SS.q_index >= n_q:
         SS.stage = "confirm"
         st.rerun()
         return
-    q = tree[SS.q_index]
+
+    # question for this step: live Genie first, then the deterministic tree
+    q = None
+    if dynamic:
+        cached = SS.get(f"dynq_{SS.wish_no}_{SS.q_index}")
+        if cached is None:
+            with st.spinner("🧞 Genie is thinking of a sharper question…"):
+                cached = BRIDGE.narrow(SS.wish_text, SS.answers, SS.q_index, n_q) or False
+            SS[f"dynq_{SS.wish_no}_{SS.q_index}"] = cached
+        q = cached or None
+    if q is None:
+        q = tree[SS.q_index] if SS.q_index < len(tree) else _GENERIC_Q
+
+    genie_say(q.get("genie") or GENIE_REACTIONS.get(SS.domain, "Interesting. Go on."))
+    src = "🧞 live Genie" if (dynamic and q.get("key", "").startswith("g")) else "guided"
     choice = akinator_question(q, SS.wish_no, SS.q_index)
-    st.caption(f"“{SS.wish_text}”  ·  narrowing {SS.q_index+1}/{len(tree)}")
+    st.caption(f"“{SS.wish_text}”  ·  narrowing {SS.q_index+1}/{n_q}  ·  {src}")
     if choice is not None:
         SS.answers[q["key"]] = choice
         SS.q_index += 1
-        if SS.q_index >= len(tree):
+        if SS.q_index >= n_q:
             SS.stage = "confirm"
         st.rerun()
 

@@ -247,6 +247,52 @@ class GenieBridge:
         res = self.client.ask(q)
         return res.get("text") if res.get("ok") else None
 
+    def narrow(self, wish_text: str, answers: dict, step: int, max_steps: int = 5):
+        """One live Akinator-style multiple-choice question from Genie.
+
+        Returns {key, genie, prompt, options:[{label,value}]} or None (caller
+        then falls back to the deterministic tree). Never raises.
+        """
+        if self.mode != GENIE_CONNECTED:
+            return None
+        import json
+        import re
+        asked = "; ".join(f"{k}={v}" for k, v in answers.items()) or "nothing yet"
+        prompt = (
+            "You are the GENIEPOLIS campus genie, narrowing a student's wish like a "
+            "playful Akinator. Ground your options in the campus tables when useful.\n"
+            f'WISH: "{wish_text}"\n'
+            f"ANSWERS SO FAR: {asked}\n"
+            f"This is question {step + 1} of at most {max_steps}. Ask something NOT already "
+            "covered. Reply with ONLY a compact JSON object, no prose:\n"
+            '{"genie":"<one witty sentence>","prompt":"<short question>",'
+            '"options":[{"label":"<short>","value":"<slug>"}, 3 or 4 items]}'
+        )
+        res = self.client.ask(prompt, new_conversation=(step == 0))
+        if not res.get("ok") or not res.get("text"):
+            return None
+        m = re.search(r"\{.*\}", res["text"], re.S)
+        if not m:
+            return None
+        try:
+            obj = json.loads(m.group(0))
+            opts = []
+            for o in obj.get("options", [])[:4]:
+                lbl = str(o["label"])[:60].strip()
+                val = str(o.get("value", lbl)).strip().lower().replace(" ", "_")[:40]
+                if lbl:
+                    opts.append({"label": lbl, "value": val or lbl.lower()})
+            if len(opts) < 2:
+                return None
+            return {
+                "key": f"g{step}",
+                "genie": str(obj.get("genie", "Hmm.")).strip()[:180] or "Hmm.",
+                "prompt": str(obj.get("prompt", "Pick one")).strip()[:180] or "Pick one",
+                "options": opts,
+            }
+        except Exception:
+            return None
+
 
 # ---------------------------------------------------------------------------
 # DEMO_MODE local answers over the synthetic data
