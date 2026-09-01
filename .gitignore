@@ -1,7 +1,22 @@
+# --- secrets (NEVER commit) ---
 .env
-__pycache__/
-*.pyc
-.DS_Store
+.env.*
+!.env.example
 .streamlit/secrets.toml
-databricks/exports/
+
+# --- python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
 .venv/
+venv/
+env/
+
+# --- generated data (regenerate with databricks/export_csvs.py) ---
+databricks/exports/
+
+# --- os / editors ---
+.DS_Store
+.idea/
+.vscode/
+*.log
