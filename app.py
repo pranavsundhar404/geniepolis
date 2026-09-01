@@ -23,7 +23,7 @@ try:
 except Exception:
     pass
 
-from data.synthetic_data import generate_all
+from data.synthetic_data import generate_all, build_snapshot
 from databricks.genie_client import GenieBridge, GENIE_CONNECTED
 from simulation.scenarios import (classify, get_tree, build_structured_wish, confirm_sentence,
                                   GENIE_REACTIONS)
@@ -130,9 +130,15 @@ def phase_campus():
     st.markdown('<p class="gp-muted">This is a synthetic digital twin of BMS College of Engineering. '
                 'Click any building to inspect its live conditions. Everything here is synthetic.</p>',
                 unsafe_allow_html=True)
+    hour = st.slider("🕒 Scrub the day — see how crowd & traffic build and fade",
+                     min_value=6, max_value=22, value=SS.get("explore_hour", 16),
+                     step=1, format="%d:00", key="explore_hour")
+    view = {**DATA, "snapshot": build_snapshot(DATA, hour)}
+
     left, right = st.columns([1.55, 1])
     with left:
-        clicked = render_campus(DATA, theme=SS.theme, key="campus_explore", height=560)
+        clicked = render_campus(view, theme=SS.theme, key=f"campus_explore_{hour}",
+                                height=560, title_suffix=f"· {hour:02d}:00")
         if clicked:
             SS.selected_building = clicked
         with st.expander("Prefer buttons? Pick a building"):
@@ -141,8 +147,8 @@ def phase_campus():
                 SS.selected_building = b
         synthetic_tag()
     with right:
-        building_panel(SS.selected_building, DATA)
-        conditions_strip(DATA)
+        building_panel(SS.selected_building, view)
+        conditions_strip(view, hour)
 
     st.write("")
     genie_data_box("campus")

@@ -114,7 +114,9 @@ def _class_start_time(sw, data, b):
     late = hour >= 18
 
     # deterministic factors
-    traffic_factor = 0.06 * shift if not late else 0.28      # sharper, compressed peak
+    # A later start SPREADS the early-morning arrival surge, so peak road
+    # congestion eases; buses still concentrate because riders can't flex.
+    traffic_factor = -0.05 * shift if not late else 0.28
     bus_factor = 0.08 * shift if not late else 0.35
     parking_factor = 0.045 * shift if not late else -0.15
     faculty_factor = 0.05 * shift if not late else 0.22
@@ -138,7 +140,7 @@ def _class_start_time(sw, data, b):
     ]
     indirect = [
         dict(label="Road traffic", building_id="main_gate", delta_pct=metrics["traffic"]["delta_pct"],
-             note="Same cars, narrower window = sharper peak" if not late else "Most traffic now after dark"),
+             note="Early rush spreads out — fewer cars in the 8-9 AM peak" if not late else "Most traffic now after dark"),
         dict(label="Bus demand", building_id="bus_stop", delta_pct=metrics["bus_peak_load"]["delta_pct"],
              note="Riders concentrate into the pre-class window"),
         dict(label="Faculty schedule", building_id="faculty_block", delta_pct=metrics["faculty_delay"]["delta_pct"],
@@ -177,18 +179,18 @@ def _class_start_time(sw, data, b):
         benefits = [f"~{shift} hour(s) more sleep / prep time for {sw.get('affected_group','students')}",
                     "Lower *early* morning crowd and 7-8 AM traffic",
                     "Fewer first-hour absentees and late entries"]
-        risks = [f"Peak traffic shifts ~{shift*15} min later and gets sharper (+{metrics['traffic']['delta_pct']}%)",
-                 f"Bus demand concentrates into one window (+{metrics['bus_peak_load']['delta_pct']}%)",
+        risks = [f"Bus demand concentrates into one 9:00-9:45 window (+{metrics['bus_peak_load']['delta_pct']}%)",
+                 f"Peak traffic moves ~{shift*15} min later (into the 9 AM band)",
                  "Faculty and worker schedules must be re-planned",
                  "Evening activities (sports, clubs) get compressed",
                  "Afternoon classroom & cafeteria load rises"]
-        tradeoffs = ["You don't remove the morning rush — you move it closer to lunch and make it denser."]
+        tradeoffs = ["Roads get easier, but the bus network now carries a sharper, shorter spike."]
 
-    why = (f"Shifting start to {target} doesn't reduce the number of commuters, it compresses them. "
-           f"Baseline peak congestion is {b['traffic']}%; with the same vehicles arriving in a tighter "
-           f"pre-{target} window, the model raises it to {metrics['traffic']['after']}%. Buses see the "
-           f"largest swing (+{metrics['bus_peak_load']['delta_pct']}%) because most riders have no "
-           f"flexibility on arrival time.")
+    why = (f"A {target} start lets students arrive over a wider morning window instead of all "
+           f"racing the 8 AM bell. With the early surge spread out, modelled peak congestion "
+           f"eases from {b['traffic']}% to {metrics['traffic']['after']}%. The catch: buses run on "
+           f"fixed timetables, so ridership concentrates hard into the pre-class window "
+           f"(+{metrics['bus_peak_load']['delta_pct']}%).")
 
     alternatives = [
         dict(label="Staggered start (8:00 / 8:45 / 9:30 by year)", why="Keeps the sleep benefit for most while flattening the traffic peak instead of moving it."),

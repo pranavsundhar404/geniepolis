@@ -26,7 +26,7 @@ def genie_appears():
         """
         <div class="gp-card" style="text-align:center; padding:1.6rem 1rem;">
           <div style="font-size:2.4rem">☁️✨</div>
-          <div class="genie-orb" style="margin:.6rem auto;"></div>
+          <div class="genie-orb" style="margin:.6rem auto;width:150px;height:150px;flex-basis:150px;"></div>
           <h3 style="margin:.2rem 0;">A Genie curls out of the campus wifi.</h3>
           <p class="gp-muted">"Aha... a campus wish? You get <b>three</b>. Choose your chaos wisely."</p>
         </div>

@@ -195,17 +195,15 @@ def building_panel(bid, data):
     )
 
 
-def conditions_strip(data):
-    """Campus-wide LOW/MED/HIGH indicators."""
+def conditions_strip(data, hour=16):
+    """Campus-wide LOW/MED/HIGH indicators for a given hour (slider-driven)."""
     snap = data.get("snapshot", {})
     pk = data["parking"]; tr = data["traffic"]
-    caf = data["canteens"].iloc[0]
-    wash = data["washrooms"]
-    park = float(pk[pk.hour == 16].occupancy_rate.mean())
-    traf = float(tr[tr.hour == 17].congestion.mean())
-    canteen = min(caf.queue_len / 90, 1.0)
-    washr = float(wash.usage_rate.mean())
-    ground = snap.get("ground", {}).get("occupancy_rate", 0.5)
+    park = float(pk[pk.hour == hour].occupancy_rate.mean())
+    traf = float(tr[tr.hour == hour].congestion.mean())
+    canteen = snap.get("cafeteria", {}).get("occupancy_rate", 0.4)
+    washr = snap.get("washroom_block", {}).get("occupancy_rate", 0.4)
+    ground = snap.get("ground", {}).get("occupancy_rate", 0.4)
     items = [("Parking", park), ("Traffic", traf), ("Canteen", canteen),
              ("Washroom", washr), ("Sports ground", ground)]
     bars = ""
@@ -217,6 +215,6 @@ def conditions_strip(data):
         bars += (f'<div class="impact-row"><span class="gp-muted" style="width:120px">{name}</span>'
                  f'<span style="font-family:monospace;color:{col}">{bar}</span>'
                  f'<b style="color:{col}">{v:.0%}</b></div>')
-    st.markdown(f'<div class="gp-card"><h3>Campus conditions · 16:00</h3>{bars}'
+    st.markdown(f'<div class="gp-card"><h3>Campus conditions · {hour:02d}:00</h3>{bars}'
                 f'<span class="gp-synthetic">Synthetic demonstration data</span></div>',
                 unsafe_allow_html=True)

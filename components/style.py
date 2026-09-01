@@ -39,9 +39,9 @@ a{color:var(--cyan);}
 
 /* ---- genie ---- */
 .genie-wrap{display:flex; gap:.9rem; align-items:flex-start;}
-.genie-orb{width:64px;height:64px;flex:0 0 64px;border-radius:50%;
+.genie-orb{width:104px;height:104px;flex:0 0 104px;border-radius:50%;
   background:radial-gradient(circle at 35% 30%, #bff6ff, var(--cyan) 40%, #1c72a8 75%, #0a3350);
-  box-shadow:0 0 0 4px #4fe3ff22, 0 0 40px #4fe3ff55; animation:bob 3.4s ease-in-out infinite;}
+  box-shadow:0 0 0 5px #4fe3ff22, 0 0 60px #4fe3ff66; animation:bob 3.4s ease-in-out infinite;}
 .genie-orb.think{animation:bob 1.1s ease-in-out infinite, hue 3s linear infinite;}
 @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
 @keyframes hue{0%{filter:hue-rotate(0)}100%{filter:hue-rotate(360deg)}}

@@ -75,12 +75,9 @@ class GenieClient:
                                    f"and that it belongs to this workspace.")
                 return False
             if r.status_code in (404, 405):
-                # endpoint shape differs; verify with a real conversation call
-                probe = self.ask("ping", new_conversation=True)
-                if probe.get("ok"):
-                    return True
-                self.last_error = probe.get("error") or f"HTTP {r.status_code} on space check"
-                return False
+                # This workspace exposes a different path shape, but host + token
+                # resolved. Assume OK — the real error (if any) surfaces on ask().
+                return True
             self.last_error = f"Genie space check HTTP {r.status_code}: {r.text[:200]}"
             return False
         except Exception as e:  # network / dns / timeout
