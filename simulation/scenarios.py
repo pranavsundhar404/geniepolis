@@ -28,6 +28,26 @@ DOMAIN_KEYWORDS = {
 
 DEFAULT_DOMAIN = "schedule"
 
+# Broad campus vocabulary — if a wish contains NONE of these (and no domain
+# keyword), it's probably not a campus wish and the Genie should push back.
+CAMPUS_VOCAB = [
+    "campus", "college", "university", "student", "students", "faculty", "teacher",
+    "professor", "staff", "worker", "class", "classroom", "lecture", "exam", "semester",
+    "hostel", "block", "building", "room", "lab", "library", "canteen", "cafeteria",
+    "mess", "food", "washroom", "toilet", "parking", "gate", "entrance", "road",
+    "traffic", "bus", "shuttle", "transport", "sports", "ground", "gym", "auditorium",
+    "wifi", "fee", "admin", "department", "schedule", "timing", "crowd", "queue",
+    "event", "seminar", "placement", "study", "attendance", "corridor", "lawn", "quad",
+    "here", "this place", "move", "build", "start", "closer", "more", "less", "better",
+]
+
+# Obvious non-campus tells
+OFFTOPIC_TELLS = [
+    "weather", "stock", "bitcoin", "crypto", "president", "war", "movie", "song",
+    "recipe", "girlfriend", "boyfriend", "marry", "dragon", "unicorn", "lottery",
+    "football match tonight", "who won", "cricket score", "translate", "python code",
+]
+
 
 def classify(text: str) -> str:
     t = (text or "").lower()
@@ -37,6 +57,28 @@ def classify(text: str) -> str:
         if hits > best_hits:
             best, best_hits = domain, hits
     return best if best_hits else DEFAULT_DOMAIN
+
+
+def is_campus_wish(text: str) -> bool:
+    """True if the text plausibly concerns the campus. Cheap guard, not a classifier."""
+    t = (text or "").strip().lower()
+    if len(t) < 3:
+        return False
+    if any(tell in t for tell in OFFTOPIC_TELLS):
+        return False
+    # a direct domain keyword hit is an instant yes
+    for kws in DOMAIN_KEYWORDS.values():
+        if any(k in t for k in kws):
+            return True
+    return any(re.search(rf"\b{re.escape(w)}\b", t) for w in CAMPUS_VOCAB)
+
+
+OFFTOPIC_REPLIES = [
+    "That is a fine wish, but I am bound to this campus. Ask me something about "
+    "*here* — buildings, classes, parking, buses, food, that sort of chaos.",
+    "My lamp only has campus-shaped magic in it. Try a wish about the college.",
+    "Out of scope for a campus genie. Give me a wish about the campus and watch it ripple.",
+]
 
 
 # ---------------------------------------------------------------------------

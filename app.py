@@ -26,7 +26,7 @@ except Exception:
 from data.synthetic_data import generate_all, build_snapshot
 from databricks.genie_client import GenieBridge, GENIE_CONNECTED
 from simulation.scenarios import (classify, get_tree, build_structured_wish, confirm_sentence,
-                                  GENIE_REACTIONS)
+                                  GENIE_REACTIONS, is_campus_wish, OFFTOPIC_REPLIES)
 from simulation.engine import simulate
 from simulation.relationships import label as node_label
 
@@ -231,7 +231,15 @@ def _stage_input():
         SS.prefill = pick
         st.rerun()
     text = wish_input(SS.wish_no, prefill=SS.prefill)
+    if SS.get("offtopic_msg"):
+        genie_say(SS.offtopic_msg)
     if text:
+        if not is_campus_wish(text):
+            import random
+            SS.offtopic_msg = random.choice(OFFTOPIC_REPLIES)
+            SS.prefill = ""
+            st.rerun()
+        SS.offtopic_msg = ""
         SS.wish_text = text
         SS.domain = classify(text)
         SS.q_index = 0
